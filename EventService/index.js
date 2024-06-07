@@ -2,6 +2,10 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const connectDB = require("./config/dbConfig");
+const eventController = require('./controllers/eventController')
+
+// auto running consumer
+eventController.runConsumer()
 
 // middlewares
 app.use(express.json());

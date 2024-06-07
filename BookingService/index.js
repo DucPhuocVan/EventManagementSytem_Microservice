@@ -2,9 +2,11 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const connectDB = require("./config/dbConfig");
+
 const bookingController = require('./controllers/bookingController')
 
 bookingController.runConsumer()
+bookingController.run_consumer_payment()
 
 // middlewares
 app.use(express.json());

@@ -3,8 +3,31 @@ const Event = require('../models/eventModel'); // Đường dẫn đến file đ
 const Seat = require('../models/seatModel'); // Đường dẫn đến file định nghĩa model Seat
 const Voucher = require('../models/voucherModel'); // Đường dẫn đến file định nghĩa model Voucher
 const Feedback = require('../models/feedbackModel'); // Đường dẫn đến file định nghĩa model Feedback
-const Producer = require('../config/kafkaConfig.js');
-Producer.startProducer()
+const { producer, consumer_payment } = require('../config/kafkaConfig.js');
+
+// producer.startProducer()
+producer.connect();
+
+// Consumer data from payment
+consumer_payment.connect();
+consumer_payment.subscribe({ topic: 'failed' });
+
+const runConsumer = async () => {
+    console.log("Consumer event for payment failed running");
+    await consumer_payment.run({
+        eachMessage: async ({ topic, partition, message }) => {
+            console.log("Consuming event for payment failed");
+            try {
+                const event_data = JSON.parse(message.value.toString());
+                console.log(event_data);
+                await updateSeatEvent(event_data);
+            } catch (error) {
+                console.error('Failed to process message', error);
+            }
+        }
+    });
+};
+
 
 // 1. Create a new event
 const createEvent = async (req, res) => {
@@ -150,7 +173,7 @@ const createBooking = async (req, res) => {
             return res.status(404).send({ message: 'Seat not found' });
         }
 
-        if (seat.status !== 'active') {
+        if (seat.status !== 'Available') {
             return res.status(400).send({ message: 'Seat is not available' });
         }
         // check event
@@ -193,13 +216,14 @@ const createBooking = async (req, res) => {
         };
 
         console.log("send message to Kafka");
-        await Producer.producer.send({
+        await producer.send({
             topic: 'succeeded',
             messages: [
               { value: JSON.stringify(booking_details) }
             ],
           });
 
+        console.log("booking_details", booking_details);
         return res.status(201).json({ message: 'Booking successful', booking_details });
     }
     catch (error) {
@@ -207,7 +231,35 @@ const createBooking = async (req, res) => {
     }
 };
 
-
+// 10. Update seat status and seat remaining for event
+const updateSeatEvent = async (event_data) => {
+    console.log("event_data", event_data)
+    const { event_id, seat_id} = event_data;
+    console.log("event_id", event_id)
+    console.log("seat_id", seat_id)
+    try {
+        const event = await Event.findById(event_id);
+        if (!event) {
+        //     return res.status(404).json({ message: 'Booking not found' });
+            console.error(`Event with ID ${event} not found`);
+        }
+        const seat = await Seat.findById(seat_id);
+        if (!seat) {
+        //     return res.status(404).json({ message: 'Booking not found' });
+            console.error(`Seat with ID ${seat} not found`);
+        }
+        seat.status = "Available";
+        await seat.save();
+        event.remaining_seat += 1;
+        await event.save();
+        console.log("event", event)
+        console.log("seat", seat)
+        // return res.status(200).json({ message: 'Booking status updated successfully', booking });
+    } catch (error) {
+        console.error(error);
+        // return res.status(500).json({ message: 'Server error' });
+    }
+};
 
 module.exports = {
     createEvent,
@@ -218,6 +270,7 @@ module.exports = {
     getEventSeats,
     getEventFeedbacks,
     getEventVouchers,
-    createBooking
+    createBooking,
+    runConsumer
 };
 

@@ -8,6 +8,9 @@ const kafkaa = new Kafka({
 
 const consumer = kafkaa.consumer({ groupId: 'bookings' });
 
+const consumer_payment = kafkaa.consumer({ groupId: 'payments' });
+
 module.exports = {
-    consumer
+    consumer,
+    consumer_payment
 };

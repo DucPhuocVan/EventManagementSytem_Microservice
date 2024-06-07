@@ -13,7 +13,10 @@ async function startProducer() {
   await producer.connect();
 }
 
+const consumer_payment = kafkaa.consumer({ groupId: 'payment_failed' });
+
 module.exports = {
   producer,
-  startProducer
+  startProducer,
+  consumer_payment
 }

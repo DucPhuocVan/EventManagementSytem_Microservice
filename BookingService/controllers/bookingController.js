@@ -1,9 +1,10 @@
 const mongoose = require('mongoose');
 const Booking = require('../models/bookingModel');
-const { consumer } = require('../config/kafkaConfig');
+const { consumer, consumer_payment } = require('../config/kafkaConfig');
 const topic = 'succeeded'
 
 console.log("Starting consumer");
+
 consumer.connect();
 consumer.subscribe({ topic: 'succeeded' });
 
@@ -23,11 +24,30 @@ const runConsumer = async () => {
     });
 };
 
+consumer_payment.connect();
+consumer_payment.subscribe({ topic: 'queued' });
+
+const run_consumer_payment = async () => {
+    console.log("Consumer payment running");
+    await consumer_payment.run({
+        eachMessage: async ({ topic, partition, message }) => {
+            console.log("Consuming Booking service");
+            try {
+                const booking_id = JSON.parse(message.value.toString());
+                console.log(booking_id);
+                await updateBookingStatus(booking_id);
+            } catch (error) {
+                console.error('Failed to process message', error);
+            }
+        }
+    });
+};
+
 // 1. Create a new Booking
 const createBooking = async (bookingData) => {
     if (!bookingData) {
         console.error('Received undefined bookingData');
-        return;
+        // return;
     }
     const { user_id, event_id, event_name, start_date, location, agenda, seat_id, seat_type, seat_code, price, voucher_id, percent} = bookingData;
     const payment_method = "payment";
@@ -52,10 +72,10 @@ const createBooking = async (bookingData) => {
         });
         await newBooking.save();
         console.log(newBooking);
-        res.status(200).json({ message: 'Booking created successfully', newBooking });
+        // res.status(200).json({ message: 'Booking created successfully', newBooking });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'An error occurred while creating the event and seats' });
+        // res.status(500).json({ error: 'An error occurred while creating the event and seats' });
     }
 };
 
@@ -79,22 +99,23 @@ const deleteBooking = async (req, res) => {
 };
 
 // 3. Update status booking
-const updateBookingStatus = async (req, res) => {
-    const { bookingId } = req.params;
+const updateBookingStatus = async (booking_id) => {
 
+    console.log("booking_id", booking_id)
     try {
-        const booking = await Booking.findById(bookingId);
+        const booking = await Booking.findById(booking_id);
         if (!booking) {
-            return res.status(404).json({ message: 'Booking not found' });
+        //     return res.status(404).json({ message: 'Booking not found' });
+            console.error(`Booking with ID ${booking_id} not found`);
         }
-
+        console.log("booking", booking)
         booking.status = "Completed";
         await booking.save();
 
-        return res.status(200).json({ message: 'Booking status updated successfully', booking });
+        // return res.status(200).json({ message: 'Booking status updated successfully', booking });
     } catch (error) {
         console.error(error);
-        return res.status(500).json({ message: 'Server error' });
+        // return res.status(500).json({ message: 'Server error' });
     }
 };
 
@@ -132,12 +153,11 @@ const getBookingsForEvent = async (req, res) => {
     }
 };
 
-
 module.exports = {
     createBooking,
     deleteBooking,
-    updateBookingStatus,
     getOneBooking,
     getBookingsForEvent,
-    runConsumer
+    runConsumer,
+    run_consumer_payment
 };
