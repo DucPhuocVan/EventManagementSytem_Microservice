@@ -113,7 +113,7 @@ router.post('/create_payment_url/:booking_id', async function (req, res, next) {
     // vnp_Params['vnp_OrderInfo'] = 'Thanh toan cho ma GD:' + booking_id;
     vnp_Params['vnp_OrderInfo'] = [bookingDetails[0].event_id, bookingDetails[0].seat_id];
     vnp_Params['vnp_OrderType'] = 'other';
-    vnp_Params['vnp_Amount'] = amount * 1000;
+    vnp_Params['vnp_Amount'] = amount * 100;
     vnp_Params['vnp_ReturnUrl'] = returnUrl;
     vnp_Params['vnp_IpAddr'] = ipAddr;
     vnp_Params['vnp_CreateDate'] = createDate;
@@ -165,8 +165,10 @@ router.get('/vnpay_return', async function (req, res, next) {
         // res.render('success', {code: vnp_Params['vnp_ResponseCode']})
 
         let responseCode = vnp_Params['vnp_ResponseCode'];
+        console.log("responseCode",responseCode)
         let transactionStatus = vnp_Params['vnp_TransactionStatus'];
-
+        console.log("transactionStatus", transactionStatus)
+        
         if (responseCode === '00' && transactionStatus === '00') {
             // Transaction successful
             console.log('vnp_Params.vnp_TxnRef', vnp_Params['vnp_TxnRef'])

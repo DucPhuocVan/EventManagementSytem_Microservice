@@ -2,9 +2,8 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const connectDB = require("./config/dbConfig");
-
 const bookingController = require('./controllers/bookingController')
-
+const autoCheckController = require('./controllers/autoCheckController')
 bookingController.runConsumer()
 bookingController.run_consumer_payment()
 
@@ -26,6 +25,9 @@ app.use((req, res, next) => {
     error.status = 404;
     next(error);
 })
+
+// auto job
+autoCheckController.checkStatusBooking();
 
 app.use((error, req, res, next) => {
     const status = error.status || 500;
