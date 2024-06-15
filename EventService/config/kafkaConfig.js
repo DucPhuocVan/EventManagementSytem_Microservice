@@ -15,8 +15,11 @@ async function startProducer() {
 
 const consumer_payment = kafkaa.consumer({ groupId: 'payment_failed' });
 
+const consumer_booking_info = kafkaa.consumer({ groupId: 'booking_info' });
+
 module.exports = {
   producer,
   startProducer,
-  consumer_payment
+  consumer_payment,
+  consumer_booking_info
 }

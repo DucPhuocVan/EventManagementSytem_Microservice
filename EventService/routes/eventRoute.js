@@ -30,7 +30,4 @@ router.get('/:id/feedbacks', handle(eventController.getEventFeedbacks));
 // Route để lấy tất cả các voucher của một sự kiện
 router.get('/:id/vouchers', handle(eventController.getEventVouchers));
 
-// Route để booking
-router.post('/bookings', handle(eventController.createBooking));
-
 module.exports = router;

@@ -1,12 +1,15 @@
 const mongoose = require('mongoose');
 const Booking = require('../models/bookingModel');
-const { consumer, consumer_payment } = require('../config/kafkaConfig');
-const topic = 'succeeded'
+const { producer, consumer, consumer_payment } = require('../config/kafkaConfig');
+
+// producer.startProducer()
+producer.connect();
+
 
 console.log("Starting consumer");
 
 consumer.connect();
-consumer.subscribe({ topic: 'succeeded' });
+consumer.subscribe({ topic: 'booking_detail' });
 
 const runConsumer = async () => {
     console.log("Consumer running");
@@ -43,7 +46,7 @@ const run_consumer_payment = async () => {
     });
 };
 
-// 1. Create a new Booking
+// Function Create a new Booking
 const createBooking = async (bookingData) => {
     if (!bookingData) {
         console.error('Received undefined bookingData');
@@ -76,6 +79,39 @@ const createBooking = async (bookingData) => {
     } catch (error) {
         console.error(error);
         // res.status(500).json({ error: 'An error occurred while creating the event and seats' });
+    }
+};
+
+// 1. Create booking for an event
+const requestBooking = async (req, res) => {
+    console.log(req.body);
+    const { seat_id, user_id, voucher_id } = req.body;
+
+    try {
+        // check required
+        if (!seat_id || !user_id || !voucher_id) {
+            return res.status(400).send({ message: 'Missing required fields' });
+        }
+
+        const booking_info = {
+            user_id: user_id,
+            seat_id: seat_id,
+            voucher_id: voucher_id
+        };
+        console.log(booking_info)
+        console.log("send message booking_info to topic check_seat");
+        await producer.send({
+            topic: 'check_seat',
+            messages: [
+              { value: JSON.stringify(booking_info) }
+            ],
+          });
+
+        console.log("booking_info", booking_info);
+        return res.status(201).json({ message: 'Booking is being processed'});
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
     }
 };
 
@@ -159,5 +195,6 @@ module.exports = {
     getOneBooking,
     getBookingsForEvent,
     runConsumer,
-    run_consumer_payment
+    run_consumer_payment,
+    requestBooking
 };

@@ -6,6 +6,7 @@ const eventController = require('./controllers/eventController')
 
 // auto running consumer
 eventController.runConsumer()
+eventController.runConsumerBookingInfo()
 
 // middlewares
 app.use(express.json());

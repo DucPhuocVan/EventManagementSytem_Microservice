@@ -1,9 +1,10 @@
 const mongoose = require('mongoose');
+const { ObjectId } = mongoose.Types;
 const Event = require('../models/eventModel'); // Đường dẫn đến file định nghĩa model Event
 const Seat = require('../models/seatModel'); // Đường dẫn đến file định nghĩa model Seat
 const Voucher = require('../models/voucherModel'); // Đường dẫn đến file định nghĩa model Voucher
 const Feedback = require('../models/feedbackModel'); // Đường dẫn đến file định nghĩa model Feedback
-const { producer, consumer_payment } = require('../config/kafkaConfig.js');
+const { producer, consumer_payment, consumer_booking_info } = require('../config/kafkaConfig.js');
 
 // producer.startProducer()
 producer.connect();
@@ -21,6 +22,26 @@ const runConsumer = async () => {
                 const event_data = JSON.parse(message.value.toString());
                 console.log(event_data);
                 await updateSeatEvent(event_data);
+            } catch (error) {
+                console.error('Failed to process message', error);
+            }
+        }
+    });
+};
+
+// Consumer booking_infor from booking
+consumer_booking_info.connect();
+consumer_booking_info.subscribe({ topic: 'check_seat' });
+
+const runConsumerBookingInfo = async () => {
+    console.log("Consumer booking info from Booking by topic check_seat");
+    await consumer_booking_info.run({
+        eachMessage: async ({ message }) => {
+            console.log("Consuming booking info from Booking by topic check_seat");
+            try {
+                const booking_info = JSON.parse(message.value.toString());
+                console.log(booking_info);
+                await checkInfoBooking(booking_info);
             } catch (error) {
                 console.error('Failed to process message', error);
             }
@@ -158,76 +179,112 @@ const getEventVouchers = async (req, res) => {
     }
 };
 
-// 9. Create booking for an event
-const createBooking = async (req, res) => {
-    const { event_id, seat_id, user_id, voucher_id } = req.body;
-
+// 9. check booking infor for an event
+const checkInfoBooking = async (booking_infor) => {
+    const { seat_id, user_id, voucher_id } = booking_infor;
+    console.log(seat_id, user_id, voucher_id);
     try {
-        // check required
-        if (!event_id || !seat_id || !user_id || !voucher_id) {
-            return res.status(400).send({ message: 'Missing required fields' });
-        }
+        let message = 'ready'
         // check seat
         const seat = await Seat.findOne({ _id: seat_id});
+        console.log("seat", seat);
+
+        console.log("seat.event_id", seat.event_id.toString())
+        const event = await Event.findById(seat.event_id.toString());
+        console.log("event", event)
+
+        
         if (!seat) {
-            return res.status(404).send({ message: 'Seat not found' });
+            // return res.status(404).send({ message: 'Seat not found' });
+            message = 'No seat found for this event'
+            console.log(message)
         }
 
         if (seat.status !== 'Available') {
-            return res.status(400).send({ message: 'Seat is not available' });
+            // return res.status(400).send({ message: 'Seat is not available' });
+            message = 'Seat is not available'
+            console.log(message)
         }
-        // check event
-        const event = await Event.findById(event_id);
-        if (!event) {
-            return res.status(404).send({ message: 'Event not found' });
-        }
+
         // check voucher
         const voucher = await Voucher.findById(voucher_id);
         if (!voucher) {
-            return res.status(404).send({ message: 'Voucher not found' });
+            // return res.status(404).send({ message: 'Voucher not found' });
+            message = 'Voucher not found'
+            console.log(message)
         }
         if (voucher.remaining_voucher <= 0) {
-            return res.status(400).send({ message: 'Voucher is used out' });
+            // return res.status(400).send({ message: 'Voucher is used out' });
+            message = 'Voucher is used out'
+            console.log(message)
         }
         if (voucher.event_id != event_id) {
-            return res.status(400).send({ message: 'Voucher does not exist this event' });
+            // return res.status(400).send({ message: 'Voucher does not exist this event' });
+            message = 'Voucher does not exist this event'
+            console.log(message)
         }
 
-        seat.status = 'Booked';
-        event.remaining_seat -= 1;
-        voucher.remaining_voucher -= 1;
-        await seat.save();
-        await event.save();
-        await voucher.save();
+        // Get event from seat
+        // if (seat.event_id.match(/^[0-9a-fA-F]{24}$/)) {
+        //     const event = await Event.findById(seat.event_id.match(/^[0-9a-fA-F]{24}$/));
+        //     console.log("event", event)
+        // }
+        // const event = await Event.findById(seat.event_id.match(/^[0-9a-fA-F]{24}$/));
+        // console.log("seat.event_id", seat.event_id.toString())
+        // const event = await Event.findById(seat.event_id.toString());
+        // console.log("event", event)
+        if (!event) {
+            // return res.status(404).send({ message: 'Event not found' });
+            message = 'Event not found'
+            console.log(message)
+        }
+        if (event.remaining_seat <= 0) {
+            // return res.status(400).send({ message: 'Event is full' });
+            message = 'Event is full'
+            console.log(message)
+        }
 
-        const booking_details = {
-            user_id: user_id,
-            event_id: event._id,
-            event_name: event.event_name,
-            start_date: event.start_date,
-            location: event.location,
-            agenda: event.agenda,
-            seat_id: seat._id,
-            seat_type: seat.seat_type,
-            seat_code: seat.seat_code,
-            price: seat.price,
-            voucher_id: voucher_id,
-            percent: voucher.percent
-        };
+        if (message == 'ready')
+        {
+            seat.status = 'Booked';
+            event.remaining_seat -= 1;
+            voucher.remaining_voucher -= 1;
+            await seat.save();
+            await event.save();
+            await voucher.save();
 
-        console.log("send message to Kafka");
-        await producer.send({
-            topic: 'succeeded',
-            messages: [
-              { value: JSON.stringify(booking_details) }
-            ],
-          });
+            const booking_details = {
+                user_id: user_id,
+                event_id: event._id,
+                event_name: event.event_name,
+                start_date: event.start_date,
+                location: event.location,
+                agenda: event.agenda,
+                seat_id: seat._id,
+                seat_type: seat.seat_type,
+                seat_code: seat.seat_code,
+                price: seat.price,
+                voucher_id: voucher_id,
+                percent: voucher.percent
+            };
 
-        console.log("booking_details", booking_details);
-        return res.status(201).json({ message: 'Booking successful', booking_details });
+            console.log("Send message booking_detail from Event to Booking by topic booking_detail");
+            await producer.send({
+                topic: 'booking_detail',
+                messages: [
+                    { value: JSON.stringify(booking_details) }
+                ],
+            });
+
+            console.log("booking_details", booking_details);
+        }
+        else {
+            console.log(message);
+        }
     }
     catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error(error);
+        // res.status(500).json({ error: error.message });
     }
 };
 
@@ -270,7 +327,8 @@ module.exports = {
     getEventSeats,
     getEventFeedbacks,
     getEventVouchers,
-    createBooking,
-    runConsumer
+    checkInfoBooking,
+    runConsumer,
+    runConsumerBookingInfo
 };
 

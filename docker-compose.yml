@@ -56,6 +56,8 @@ services:
       kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic queued --replication-factor 1 --partitions 3
       kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic succeeded --replication-factor 1 --partitions 3
       kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic failed --replication-factor 1 --partitions 3
+      kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic check_seat --replication-factor 1 --partitions 3
+      kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic booking_detail --replication-factor 1 --partitions 3
 
       echo -e 'Successfully created the following topics:'
       kafka-topics --bootstrap-server kafka:19092 --list

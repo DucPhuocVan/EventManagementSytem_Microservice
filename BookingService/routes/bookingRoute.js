@@ -3,8 +3,8 @@ const router = express.Router();
 
 const bookingController = require('../controllers/bookingController'); // Adjust the path as necessary
 
-// Route to create a new booking
-// router.post('/', bookingController.createBooking);
+// Route to request a new booking
+router.post('/', bookingController.requestBooking);
 
 // Route to delete a booking
 router.delete('/:bookingId', bookingController.deleteBooking);
