@@ -191,16 +191,16 @@ router.get('/vnpay_return', async function (req, res, next) {
 
             console.log('vnp_Params.vnp_OrderInfo_event', vnp_Params['vnp_OrderInfo'][0])
             console.log('vnp_Params.vnp_OrderInfo_seat', vnp_Params['vnp_OrderInfo'][1])
-            const infor = {
-                event_id: vnp_Params['vnp_OrderInfo'][0],
-                seat_id: vnp_Params['vnp_OrderInfo'][1]
-            };
-            await Producer.producer.send({
-                topic: 'failed',
-                messages: [
-                  { value: JSON.stringify(infor) }
-                ],
-              });
+            // const infor = {
+            //     event_id: vnp_Params['vnp_OrderInfo'][0],
+            //     seat_id: vnp_Params['vnp_OrderInfo'][1]
+            // };
+            // await Producer.producer.send({
+            //     topic: 'failed',
+            //     messages: [
+            //       { value: JSON.stringify(infor) }
+            //     ],
+            //   });
             return res.status(401).json({ message: 'Payment failed', vnp_Params });
         }
     } else{

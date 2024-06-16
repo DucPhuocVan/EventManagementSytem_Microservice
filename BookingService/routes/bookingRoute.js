@@ -16,6 +16,9 @@ router.delete('/:bookingId', bookingController.deleteBooking);
 router.get('/:booking_id', bookingController.getOneBooking);
 
 // Route to get bookings for a specific event
-router.get('/event/:eventId', bookingController.getBookingsForEvent);
+router.get('/:eventId', bookingController.getBookingsForEvent);
+
+// Route để lấy tất cả các bookingtemp
+router.get('/booking_temp', bookingController.getAllBookingTemp);
 
 module.exports = router;

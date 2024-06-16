@@ -11,13 +11,13 @@ producer.connect();
 
 // Consumer data from payment
 consumer_payment.connect();
-consumer_payment.subscribe({ topic: 'failed' });
+consumer_payment.subscribe({ topic: 'payment_failed' });
 
 const runConsumer = async () => {
-    console.log("Consumer event for payment failed running");
+    console.log("Consumer expiredBookings from Booking");
     await consumer_payment.run({
         eachMessage: async ({ topic, partition, message }) => {
-            console.log("Consuming event for payment failed");
+            console.log("Consuming expiredBookings from Booking");
             try {
                 const event_data = JSON.parse(message.value.toString());
                 console.log(event_data);
@@ -218,21 +218,12 @@ const checkInfoBooking = async (booking_infor) => {
             message = 'Voucher is used out'
             console.log(message)
         }
-        if (voucher.event_id != event_id) {
+        if (voucher.event_id.toString() != event._id.toString()) {
             // return res.status(400).send({ message: 'Voucher does not exist this event' });
             message = 'Voucher does not exist this event'
             console.log(message)
         }
 
-        // Get event from seat
-        // if (seat.event_id.match(/^[0-9a-fA-F]{24}$/)) {
-        //     const event = await Event.findById(seat.event_id.match(/^[0-9a-fA-F]{24}$/));
-        //     console.log("event", event)
-        // }
-        // const event = await Event.findById(seat.event_id.match(/^[0-9a-fA-F]{24}$/));
-        // console.log("seat.event_id", seat.event_id.toString())
-        // const event = await Event.findById(seat.event_id.toString());
-        // console.log("event", event)
         if (!event) {
             // return res.status(404).send({ message: 'Event not found' });
             message = 'Event not found'
@@ -254,18 +245,21 @@ const checkInfoBooking = async (booking_infor) => {
             await voucher.save();
 
             const booking_details = {
-                user_id: user_id,
-                event_id: event._id,
-                event_name: event.event_name,
-                start_date: event.start_date,
-                location: event.location,
-                agenda: event.agenda,
-                seat_id: seat._id,
-                seat_type: seat.seat_type,
-                seat_code: seat.seat_code,
-                price: seat.price,
-                voucher_id: voucher_id,
-                percent: voucher.percent
+                status: 'success',
+                detail: {
+                    user_id: user_id,
+                    event_id: event._id,
+                    event_name: event.event_name,
+                    start_date: event.start_date,
+                    location: event.location,
+                    agenda: event.agenda,
+                    seat_id: seat._id,
+                    seat_type: seat.seat_type,
+                    seat_code: seat.seat_code,
+                    price: seat.price,
+                    voucher_id: voucher_id,
+                    percent: voucher.percent
+                }
             };
 
             console.log("Send message booking_detail from Event to Booking by topic booking_detail");
@@ -276,10 +270,28 @@ const checkInfoBooking = async (booking_infor) => {
                 ],
             });
 
-            console.log("booking_details", booking_details);
+            console.log("booking_details_success", booking_details);
         }
         else {
-            console.log(message);
+            const booking_details = {
+                status: 'failed',
+                detail: {
+                    user_id: user_id,
+                    seat_id: seat._id,
+                    voucher_id: voucher_id,
+                    error: message
+                }
+            };
+
+            console.log("Send message booking_detail from Event to Booking by topic booking_detail");
+            await producer.send({
+                topic: 'booking_detail',
+                messages: [
+                    { value: JSON.stringify(booking_details) }
+                ],
+            });
+
+            console.log("booking_details_failed", booking_details);
         }
     }
     catch (error) {
